@@ -53,7 +53,7 @@ ${context || "No context provided."}`;
 		console.log("Forwarding request to OpenAI API...");
 
 		const payload = {
-			model: "gpt-4o-mini", // You can change this to "gpt-4o", "gpt-4-turbo", etc.
+			model: "gpt-4o", // You can change this to "gpt-4o", "gpt-4-turbo", etc.
 			messages: [
 				{
 					role: "system",
