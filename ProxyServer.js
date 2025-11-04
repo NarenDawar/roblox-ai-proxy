@@ -203,7 +203,7 @@ ${context || "No context provided."}`;
 
 	} catch (error) {
 		console.error(`Error in /generate endpoint for model ${model}:`, error);
-		res.status(5What.json({ error: "Internal server error.", details: error.message });
+		res.status(500).json({ error: "Internal server error.", details: error.message });
 	}
 });
 
