@@ -1,0 +1,17 @@
+{
+  "name": "roblox-ai-proxy",
+  "version": "1.0.0",
+  "description": "A proxy server to securely connect a Roblox plugin to an external AI API.",
+  "main": "ProxyServer.js",
+  "type": "module",
+  "scripts": {
+    "start": "node ProxyServer.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
