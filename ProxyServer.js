@@ -85,7 +85,6 @@ ${context || "No context provided."}`;
 					{ role: "user", content: userQuery }
 				],
 				temperature: 0.7,
-				max_tokens: 2048,
 			};
 			
 			const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
