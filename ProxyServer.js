@@ -1,6 +1,6 @@
 /*
-	This is the Node.js proxy server (UPDATED FOR HISTORY).
-	It now accepts a 'messages' array instead of a 'prompt' string.
+	This is the Node.js proxy server (UPDATED FOR "BYOK" MODEL).
+	It has NO fallback keys. Users MUST provide their own API key in the plugin.
 */
 import express from 'express';
 import cors from 'cors';
@@ -8,7 +8,11 @@ import cors from 'cors';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// MODIFIED: Removed all fallback API keys. They are no longer used.
+// const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+// const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
 const DEFAULT_MODEL = "gpt-4o-mini";
 
 // Middleware
@@ -19,20 +23,30 @@ app.use(express.json());
 app.get('/', (req, res) => {
 	res.json({
 		status: 'ok',
-		message: 'Roblox AI Proxy Server (with History) is running!',
+		message: 'Roblox AI Proxy Server (BYOK Mode) is running!',
 		defaultModel: DEFAULT_MODEL,
-		hasOpenAIFallbackKey: !!OPENAI_API_KEY,
+		hasOpenAIFallbackKey: false, // Explicitly set to false
 	});
 });
 
 // --- Main Generation Endpoint (UPDATED) ---
 app.post('/generate', async (req, res) => {
-	// MODIFIED: 'prompt' is gone, 'messages' is new
+	// MODIFIED: 'apiKey' is now the only key used.
 	const { context, model = DEFAULT_MODEL, apiKey, messages } = req.body;
 
 	if (!messages || messages.length === 0) {
 		return res.status(400).json({ error: "Missing 'messages' array in request body." });
 	}
+
+	// MODIFIED: Check for the user's API key MUST happen first.
+	if (!apiKey) {
+		return res.status(400).json({ 
+			error: "API Key Required",
+			details: `You must provide your own API key in the plugin's configuration section to use this tool.`
+		});
+	}
+	
+	const keyToUse = apiKey; // The user's key is the only key
 
 	// --- Construct the System Prompt (lives on the server) ---
 	const systemPrompt = `You are an expert Roblox Luau developer and scripter.
@@ -47,35 +61,29 @@ ${context || "No context provided."}`;
 	let aiText = "";
 
 	try {
-		// --- AI ROUTER LOGIC (now handles 'messages' array) ---
+		// --- AI ROUTER LOGIC ---
 
 		if (model.startsWith('gpt-')) {
 			// --- 1. Handle OpenAI ---
 			console.log(`Routing to OpenAI for model: ${model}`);
-			const keyToUse = apiKey || OPENAI_API_KEY; 
 			
-			if (!keyToUse) {
-				return res.status(500).json({ error: "Server is missing OPENAI_API_KEY." });
-			}
-
-			// MODIFIED: Combine system prompt with user's message history
+			// MODIFIED: No fallback. 'keyToUse' is just 'apiKey'.
 			const openAIMessages = [
 				{ role: "system", content: systemPrompt },
-				...messages // Add the rest of the history
+				...messages
 			];
 
 			const payload = {
 				model: model,
-				messages: openAIMessages, // Use the combined array
+				messages: openAIMessages,
 				temperature: 1,
-				max_tokens: 2048,
 			};
 			
 			const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${keyToUse}`
+					'Authorization': `Bearer ${keyToUse}` // Uses user's key
 				},
 				body: JSON.stringify(payload)
 			});
@@ -91,27 +99,17 @@ ${context || "No context provided."}`;
 		} else if (model.startsWith('gemini-')) {
 			// --- 2. Handle Google Gemini ---
 			console.log(`Routing to Google for model: ${model}`);
-			const keyToUse = apiKey; 
 			
-			if (!keyToUse) {
-				return res.status(400).json({ 
-					error: "API Key Required",
-					details: `You must provide your own API key to use Gemini models.`
-				});
-			}
-
-			// MODIFIED: Transform history for Gemini (roles: 'user'/'model')
-			// and manually prepend system prompt to the *first* user message.
+			// MODIFIED: 'keyToUse' is just 'apiKey'. No fallback check needed.
 			const geminiContents = messages.map(msg => ({
 				role: msg.role === 'assistant' ? 'model' : 'user',
 				parts: [{ text: msg.content }]
 			}));
 			
-			// Inject system prompt before the first user message
 			geminiContents[0].parts[0].text = `${systemPrompt}\n\n---\n\nUSER PROMPT: ${geminiContents[0].parts[0].text}`;
 
 			const payload = { contents: geminiContents };
-			const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keyToUse}`;
+			const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keyToUse}`; // Uses user's key
 			
 			const apiResponse = await fetch(API_URL, {
 				method: 'POST',
@@ -130,26 +128,17 @@ ${context || "No context provided."}`;
 		} else if (model.startsWith('claude-')) {
 			// --- 3. Handle Anthropic Claude ---
 			console.log(`Routing to Anthropic for model: ${model}`);
-			const keyToUse = apiKey; 
-
-			if (!keyToUse) {
-				return res.status(400).json({ 
-					error: "API Key Required",
-					details: `You must provide your own API key to use Claude models.`
-				});
-			}
-
-			// MODIFIED: Transform history for Claude (roles: 'user'/'assistant')
-			// Claude has a dedicated 'system' field, which is great.
+			
+			// MODIFIED: 'keyToUse' is just 'apiKey'. No fallback check needed.
 			const claudeMessages = messages.map(msg => ({
-				role: msg.role === 'assistant' ? 'assistant' : 'user', // Ensure correct roles
+				role: msg.role === 'assistant' ? 'assistant' : 'user',
 				content: msg.content
 			}));
 
 			const payload = {
 				model: model,
-				system: systemPrompt, // Use the dedicated system field
-				messages: claudeMessages, // Pass the history
+		system: systemPrompt,
+				messages: claudeMessages,
 				max_tokens: 2048,
 			};
 
@@ -157,7 +146,7 @@ ${context || "No context provided."}`;
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'x-api-key': keyToUse,
+					'x-api-key': keyToUse, // Uses user's key
 					'anthropic-version': '2023-06-01'
 				},
 				body: JSON.stringify(payload)
@@ -191,10 +180,6 @@ ${context || "No context provided."}`;
 });
 
 app.listen(PORT, () => {
-	console.log(`Roblox AI Multi-Model Proxy Server (with History) listening on port ${PORT}`);
-	if (!OPENAI_API_KEY) {
-		console.warn("WARNING: OPENAI_API_KEY is not set. The default fallback will fail!");
-	} else {
-		console.log(`Default fallback model 'gpt-4o-mini' is ready.`);
-	}
+	console.log(`Roblox AI Multi-Model Proxy Server (BYOK Mode) listening on port ${PORT}`);
+	console.log("Server is running in BYOK (Bring Your Own Key) mode. No fallback keys are configured.");
 });
