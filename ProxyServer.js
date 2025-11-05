@@ -84,7 +84,7 @@ ${context || "No context provided."}`;
 					{ role: "system", content: systemPrompt },
 					{ role: "user", content: userQuery }
 				],
-				temperature: 0.7,
+				temperature: 1,
 			};
 			
 			const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
