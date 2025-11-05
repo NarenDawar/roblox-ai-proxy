@@ -139,7 +139,6 @@ ${context || "No context provided."}`;
 				model: model,
 		system: systemPrompt,
 				messages: claudeMessages,
-				max_tokens: 2048,
 			};
 
 			const apiResponse = await fetch('https://api.anthropic.com/v1/messages', {
